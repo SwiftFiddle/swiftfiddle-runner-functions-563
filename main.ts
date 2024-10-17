@@ -32,7 +32,7 @@ Deno.serve(
       }
       return runStream(parameters);
     },
-  }),
+  })
 );
 
 async function swiftVersion(): Promise<string> {
@@ -48,26 +48,20 @@ async function runOutput(parameters: RequestParameters): Promise<Response> {
   const output = new TextDecoder().decode(stdout);
   const errors = new TextDecoder().decode(stderr);
 
-  return responseJSON(
-    new OutputResponse(
-      output,
-      errors,
-      version,
-    ),
-  );
+  return responseJSON(new OutputResponse(output, errors, version));
 }
 
 function runStream(parameters: RequestParameters): Response {
   return new Response(
     zipReadableStreams(
       spawn(makeVersionCommand(), undefined, "version", "version"),
-      spawn(makeSwiftCommand(parameters), parameters.code, "stdout", "stderr"),
+      spawn(makeSwiftCommand(parameters), parameters.code, "stdout", "stderr")
     ),
     {
       headers: {
         "content-type": "text/plain; charset=utf-8",
       },
-    },
+    }
   );
 }
 
@@ -75,7 +69,7 @@ function spawn(
   command: Deno.Command,
   input: string | undefined,
   stdoutKey: string,
-  stderrKey: string,
+  stderrKey: string
 ): ReadableStream<Uint8Array> {
   const process = command.spawn();
 
@@ -89,64 +83,50 @@ function spawn(
 
   return mergeReadableStreams(
     makeStreamResponse(process.stderr, stderrKey),
-    makeStreamResponse(process.stdout, stdoutKey),
+    makeStreamResponse(process.stdout, stdoutKey)
   );
 }
 
 function makeVersionCommand(): Deno.Command {
-  return new Deno.Command(
-    "swift",
-    {
-      args: ["-version"],
-      stdout: "piped",
-      stderr: "piped",
-    },
-  );
+  return new Deno.Command("swift", {
+    args: ["-version"],
+    stdout: "piped",
+    stderr: "piped",
+  });
 }
 
-function makeSwiftCommand(
-  parameters: RequestParameters,
-): Deno.Command {
+function makeSwiftCommand(parameters: RequestParameters): Deno.Command {
   const command = parameters.command || "swift";
-  const options = parameters.options ||
-    "-I ./swiftfiddle.com/_Packages/.build/release/ -I ./swiftfiddle.com/_Packages/.build/checkouts/swift-numerics/Sources/_NumericsShims/include/ -L ./swiftfiddle.com/_Packages/.build/release/ -l_Packages -enable-bare-slash-regex";
+  const options =
+    parameters.options ||
+    "-I ./swiftfiddle.com/_Packages/.build/release/ -I ./swiftfiddle.com/_Packages/.build/checkouts/swift-numerics/Sources/_NumericsShims/include/ -L ./swiftfiddle.com/_Packages/.build/release/ -l_Packages";
 
   const timeout = parameters.timeout || 60;
   const color = parameters._color || false;
   const env = color
     ? {
-      "TERM": "xterm-256color",
-      "LD_PRELOAD": "./faketty.so",
-    }
+        TERM: "xterm-256color",
+        LD_PRELOAD: "./faketty.so",
+      }
     : undefined;
-  const args = [
-    "-i0",
-    "-oL",
-    "-eL",
-    "timeout",
-    `${timeout}`,
-    command,
-  ];
+  const args = ["-i0", "-oL", "-eL", "timeout", `${timeout}`, command];
   if (options) {
     args.push(...options.split(" "));
   }
   args.push("-");
 
-  return new Deno.Command(
-    "stdbuf",
-    {
-      args: args,
-      env: env,
-      stdin: "piped",
-      stdout: "piped",
-      stderr: "piped",
-    },
-  );
+  return new Deno.Command("stdbuf", {
+    args: args,
+    env: env,
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
 }
 
 function makeStreamResponse(
   stream: ReadableStream<Uint8Array>,
-  key: string,
+  key: string
 ): ReadableStream<Uint8Array> {
   return stream.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
@@ -154,11 +134,11 @@ function makeStreamResponse(
         const text = new TextDecoder().decode(chunk);
         controller.enqueue(
           new TextEncoder().encode(
-            `${JSON.stringify(new StreamResponse(key, text))}\n`,
-          ),
+            `${JSON.stringify(new StreamResponse(key, text))}\n`
+          )
         );
       },
-    }),
+    })
   );
 }
 
@@ -168,14 +148,11 @@ async function responseHealthCheck(): Promise<Response> {
 }
 
 function responseJSON(json: unknown): Response {
-  return new Response(
-    JSON.stringify(json),
-    {
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-      },
+  return new Response(JSON.stringify(json), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
     },
-  );
+  });
 }
 
 function resposeError(message: string, status: number): Response {
